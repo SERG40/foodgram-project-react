@@ -1,20 +1,23 @@
 from django.contrib.auth import get_user_model
 from django.db.models import F
 from django.shortcuts import get_object_or_404
-from djoser.serializers import UserCreateSerializer, UserSerializer
-from drf_extra_fields.fields import Base64ImageField
-from recipes.models import Ingredient, IngredientInRecipe, Recipe, Tag
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import IntegerField, SerializerMethodField
 from rest_framework.relations import PrimaryKeyRelatedField
 from rest_framework.serializers import ModelSerializer
+
+from djoser.serializers import UserCreateSerializer, UserSerializer
+from drf_extra_fields.fields import Base64ImageField
+
+from recipes.models import Ingredient, IngredientInRecipe, Recipe, Tag
 from users.models import Subscribe
 
 User = get_user_model()
 
 
 class CustomUserCreateSerializer(UserCreateSerializer):
+    """Поле создания пользователя."""
     class Meta:
         model = User
         fields = tuple(User.REQUIRED_FIELDS) + (
@@ -24,6 +27,7 @@ class CustomUserCreateSerializer(UserCreateSerializer):
 
 
 class CustomUserSerializer(UserSerializer):
+    """Пользователь"""
     is_subscribed = SerializerMethodField(read_only=True)
 
     class Meta:
@@ -45,6 +49,7 @@ class CustomUserSerializer(UserSerializer):
 
 
 class SubscribeSerializer(CustomUserSerializer):
+    """Сабскрайбер."""
     recipes_count = SerializerMethodField()
     recipes = SerializerMethodField()
 
@@ -83,18 +88,21 @@ class SubscribeSerializer(CustomUserSerializer):
 
 
 class IngredientSerializer(ModelSerializer):
+    """Ингридиенты"""
     class Meta:
         model = Ingredient
         fields = ('id', 'name', 'measurement_unit')
 
 
 class TagSerializer(ModelSerializer):
+    """Таги"""
     class Meta:
         model = Tag
         fields = ('id', 'name', 'color', 'slug')
 
 
 class RecipeReadSerializer(ModelSerializer):
+    """Рецепты"""
     tags = TagSerializer(many=True, read_only=True)
     author = CustomUserSerializer(read_only=True)
     ingredients = SerializerMethodField()
@@ -149,6 +157,7 @@ class IngredientInRecipeWriteSerializer(ModelSerializer):
 
 
 class RecipeWriteSerializer(ModelSerializer):
+    """Рецепты"""
     tags = PrimaryKeyRelatedField(queryset=Tag.objects.all(),
                                   many=True)
     author = CustomUserSerializer(read_only=True)
@@ -181,10 +190,14 @@ class RecipeWriteSerializer(ModelSerializer):
                 raise ValidationError({
                     'ingredients': 'Ингридиенты не могут повторяться!'
                 })
-            if int(item['amount']) <= 0:
+            if int(item['amount']) < 0:
                 raise ValidationError({
                     'amount': 'Количество ингредиента должно быть больше 0!'
                 })
+            if not Ingredient.objects.filter(id=id.item):
+                raise ValidationError(
+                    'Ингредиента не существует.'
+                )
             ingredients_list.append(ingredient)
         return value
 
@@ -199,6 +212,11 @@ class RecipeWriteSerializer(ModelSerializer):
             raise ValidationError({
                 'tags': 'Теги должны быть уникальными!'
             })
+        for tag in value:
+            if not Tag.objects.filter(id=id.tag):
+                raise ValidationError(
+                    'Тэга не существует.'
+                )
         return value
 
     def create_ingredients_amounts(self, ingredients, recipe):
@@ -239,6 +257,7 @@ class RecipeWriteSerializer(ModelSerializer):
 
 
 class RecipeShortSerializer(ModelSerializer):
+    """Краткие рецепты"""
     image = Base64ImageField()
 
     class Meta:
