@@ -193,6 +193,10 @@ class RecipeWriteSerializer(ModelSerializer):
                 raise ValidationError({
                     'amount': 'Количество ингредиента должно быть больше 0!'
                 })
+            if not Ingredient.objects.filter(id=item.id):
+                raise ValidationError(
+                    'Ингредиента не существует.'
+                )
             ingredients_list.append(ingredient)
         return value
 
@@ -207,6 +211,11 @@ class RecipeWriteSerializer(ModelSerializer):
             raise ValidationError({
                 'tags': 'Теги должны быть уникальными!'
             })
+        for tag in value:
+            if not Tag.objects.filter(id=tag.id):
+                raise ValidationError(
+                    'Тэга не существует.'
+                )
         return value
 
     def create_ingredients_amounts(self, ingredients, recipe):
